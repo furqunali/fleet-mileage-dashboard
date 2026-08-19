@@ -1,0 +1,26 @@
+{
+  "_comment": "Global policy for the gas-reimbursement workflow. Edit values here; no code change needed.",
+
+  "master_workbook": "Fleet_Distance_Dashboard_v5.xlsx",
+  "master_matrix_sheet": "Matrix",
+  "master_directory_sheet": "Directory",
+
+  "default_rate_per_mile": 0.27,
+  "pay_basis": "matrix",
+  "_pay_basis_note": "'matrix' = reimburse on Matrix road miles (authoritative). Odometer is cross-check only.",
+
+  "variance_threshold_pct": 20.0,
+  "_variance_note": "If |claimed odometer miles - matrix miles| / matrix miles exceeds this %, the leg becomes a VARIANCE exception.",
+
+  "fuzzy_match_cutoff": 0.72,
+  "_fuzzy_cutoff_note": "Minimum name/address similarity (0-1) to accept an automatic match.",
+
+  "fuzzy_match_margin": 0.06,
+  "_fuzzy_margin_note": "Top candidate must beat the 2nd candidate by at least this much, else AMBIGUOUS.",
+
+  "home_leg_policy": "flag",
+  "_home_leg_note": "Home/apartment legs are ALWAYS flagged for HR/manual review. Never auto-approved or auto-rejected.",
+
+  "multistop_policy": "flag",
+  "_multistop_note": "Rows with multiple destinations are ALWAYS flagged for manual itemization. Route order is never guessed."
+}

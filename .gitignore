@@ -1,0 +1,47 @@
+# ---- Real data must never be committed ----
+# Spreadsheets / documents / exports (may contain real employee data)
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+
+# Runtime data / config with real entries
+approvals.json
+ledger.csv
+geocode_cache.json
+coord_overrides.json
+gathered.json
+config/HR_Settings.xlsx
+config/employees.csv
+config/location_aliases.csv
+inbox/
+output/
+backups/
+2_Reports/
+3_Backups/
+data/
+
+# Keep sanitized samples explicitly
+!*.sample.csv
+!reimbursement_workflow/config/policy.json
+
+# ---- Secrets ----
+.env
+*.key
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+env/
+
+# ---- Editor / OS / tooling ----
+.claude/
+.vscode/
+.idea/
+node_modules/
+.DS_Store
+Thumbs.db

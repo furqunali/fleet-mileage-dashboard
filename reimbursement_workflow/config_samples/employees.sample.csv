@@ -1,0 +1,3 @@
+employee_id,employee_name,home_label,home_address,home_lat,home_lon,default_rate,notes
+1001,JANE DOE,Demo Apartments,,,,0.27,"Fictional sample. Home/apartment legs -> HOME_ADDRESS_REVIEW, $0 (reference only). Address intentionally blank."
+1002,JOHN SMITH,,,,,0.27,"Fictional sample employee."

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Mileage Reimbursement — HR Control Panel (Demo)</title>
+<style>
+  :root{
+    --bg:#0e1726; --panel:#16233a; --panel2:#1e3050; --ink:#eaf1fb; --dim:#9fb2cf;
+    --line:#2b3d5e; --green:#26c281; --amber:#ffb23e; --blue:#3aa0ff; --red:#ff5d6c;
+    --purple:#9d7bff; --gold:#ffc72c;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:
+       radial-gradient(1200px 600px at 20% -10%, #1a2b48 0%, var(--bg) 55%);
+       color:var(--ink);min-height:100vh;padding:24px;}
+  .wrap{max-width:960px;margin:0 auto;}
+  .top{display:flex;align-items:center;gap:14px;margin-bottom:6px;flex-wrap:wrap;}
+  .logo{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#ffc72c,#ff9d2c);
+        display:grid;place-items:center;font-size:26px;box-shadow:0 6px 18px rgba(255,170,44,.35);}
+  h1{font-size:22px;margin:0;letter-spacing:.3px;}
+  .sub{color:var(--dim);font-size:13px;margin:2px 0 0;}
+  .demo-tag{margin-left:auto;background:#3a2a12;color:var(--amber);border:1px solid #6a4c1e;
+        padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.5px;}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0;}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center;}
+  .kpi .v{font-size:26px;font-weight:800;color:var(--gold);}
+  .kpi .l{font-size:11px;font-weight:700;color:var(--dim);letter-spacing:.5px;margin-top:4px;text-transform:uppercase;}
+
+  .status{margin:14px 0 22px;background:#0a1120;border:1px solid var(--line);border-radius:14px;
+        padding:16px 18px;min-height:56px;display:flex;align-items:center;gap:14px;}
+  .led{width:14px;height:14px;border-radius:50%;background:var(--green);flex:none;
+        box-shadow:0 0 14px var(--green),0 0 0 4px rgba(38,194,129,.18);}
+  #statusText{font-size:15px;line-height:1.5;} #statusText b{color:#fff;}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .btn{border:none;border-radius:18px;padding:22px 16px;font-size:16px;font-weight:800;
+        color:#0c1322;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px;
+        box-shadow:0 8px 0 rgba(0,0,0,.35),0 12px 24px rgba(0,0,0,.35);transition:transform .06s, box-shadow .06s;}
+  .btn .ico{font-size:30px;} .btn .cap{font-size:12px;font-weight:600;opacity:.7;}
+  .btn:active{transform:translateY(6px);box-shadow:0 2px 0 rgba(0,0,0,.35),0 6px 14px rgba(0,0,0,.35);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(.4);}
+  .b-review{background:linear-gradient(180deg,#5cb3ff,#2f92f0);}
+  .b-approve{background:linear-gradient(180deg,#7ee0a6,#38c07e);}
+  .b-send{background:linear-gradient(180deg,#b79bff,#8a63ff);color:#fff;}
+
+  .totbar{display:none;margin-top:18px;background:var(--panel2);border:1px solid var(--line);
+        border-radius:12px;padding:12px 16px;font-size:14px;color:var(--dim);}
+  .totbar b{color:#fff;font-size:16px;}
+  .list{margin-top:16px;display:none;flex-direction:column;gap:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+        display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+  .card.flagged{border-color:#6a4c1e;}
+  .card .emoji{font-size:26px;}
+  .card .info{flex:1;min-width:180px;}
+  .card .nm{font-weight:700;font-size:15px;}
+  .card .meta{color:var(--dim);font-size:13px;margin-top:2px;}
+  .card .flag{color:var(--amber);font-size:12px;margin-top:3px;}
+  .pill{padding:5px 10px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--line);white-space:nowrap;}
+  .pill.wait{background:#3a2f12;color:var(--amber);}
+  .pill.ok{background:#123a28;color:var(--green);}
+  .pill.hold{background:#3a1f22;color:var(--red);}
+  .mini{border:none;border-radius:10px;padding:9px 14px;font-weight:700;cursor:pointer;font-size:13px;}
+  .mini.appr{background:var(--green);color:#08221a;} .mini.hold{background:#33425e;color:var(--ink);}
+  .foot{margin-top:22px;color:var(--dim);font-size:12.5px;text-align:center;line-height:1.6;}
+
+  .modal{position:fixed;inset:0;background:rgba(4,8,16,.72);display:none;align-items:center;justify-content:center;padding:24px;z-index:50;}
+  .modal.show{display:flex;}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:640px;width:100%;max-height:88vh;overflow:auto;}
+  .sheet h3{margin:0;padding:18px 20px;border-bottom:1px solid var(--line);font-size:17px;}
+  .field{padding:12px 20px;border-bottom:1px solid var(--line);font-size:13.5px;}
+  .field label{color:var(--dim);display:block;margin-bottom:3px;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;}
+  #emailBody{width:100%;min-height:210px;background:#0a1120;color:var(--ink);border:1px solid var(--line);
+        border-radius:10px;padding:12px;font-family:'Consolas',monospace;font-size:12.5px;line-height:1.55;resize:vertical;}
+  .acts{padding:16px 20px;display:flex;gap:10px;flex-wrap:wrap;}
+  .act{border:none;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;font-size:13.5px;}
+  .act.close{background:#33425e;color:var(--ink);margin-left:auto;}
+  @media(max-width:640px){.kpis{grid-template-columns:repeat(2,1fr);}.grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">&#9981;</div>
+    <div>
+      <h1>Fleet Mileage Reimbursement &mdash; HR Control Panel</h1>
+      <p class="sub">Review each employee's monthly mileage, approve, and draft the Director email.</p>
+    </div>
+    <div class="demo-tag">&#9679; DEMO &middot; FICTIONAL DATA</div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kEmp">3</div><div class="l">Employees</div></div>
+    <div class="kpi"><div class="v" id="kMiles">0</div><div class="l">Total Miles</div></div>
+    <div class="kpi"><div class="v" id="kAppr">0</div><div class="l">Approved</div></div>
+    <div class="kpi"><div class="v" id="kAmt">$0</div><div class="l">Approved $</div></div>
+  </div>
+
+  <div class="status">
+    <div class="led"></div>
+    <div id="statusText">Loaded <b>3 sample reports</b> for <b>May 2026</b>. Press <b>&#128203; REVIEW</b> to see them.</div>
+  </div>
+
+  <div class="grid">
+    <button class="btn b-review"  id="bReview"><span class="ico">&#128203;</span>REVIEW<span class="cap">see the list</span></button>
+    <button class="btn b-approve" id="bApprove" disabled><span class="ico">&#9989;</span>APPROVE ALL<span class="cap">one click</span></button>
+    <button class="btn b-send"    id="bSend"   disabled><span class="ico">&#128231;</span>SEND<span class="cap">draft to Director</span></button>
+  </div>
+
+  <div class="totbar" id="totbar"></div>
+  <div class="list" id="list"></div>
+
+  <p class="foot">Fully self-contained demo with fictional employees, addresses and amounts. Approving is safe &mdash;
+  the Director email is shown as a <b>draft you review first</b> and is never sent.</p>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3>&#128231; Email to Director &mdash; review before sending</h3>
+    <div class="field"><label>To</label><div>[Director email &mdash; to be set]</div></div>
+    <div class="field"><label>Cc</label><div>[HR team &mdash; to be set]</div></div>
+    <div class="field"><label>Subject</label><div id="emSubj"></div></div>
+    <div class="field"><label>Message</label><textarea id="emailBody"></textarea></div>
+    <div class="acts"><button class="act close" id="emClose">Close</button></div>
+  </div>
+</div>
+
+<script>
+  // Fictional demo data only — no external calls, no real people.
+  let reports=[
+    {employee:"Employee A", month:"May 2026", total_miles:812, rate:0.27, est_reimb:219.24, decision:"waiting",
+     flags:["Home/apartment leg needs HR review"]},
+    {employee:"Employee B", month:"May 2026", total_miles:640, rate:0.27, est_reimb:172.80, decision:"waiting", flags:[]},
+    {employee:"Employee C", month:"May 2026", total_miles:958, rate:0.30, est_reimb:287.40, decision:"waiting",
+     flags:["Multi-stop line requires manual itemization"]}
+  ];
+  const $=id=>document.getElementById(id);
+  const money=n=>'$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const miles=n=>Number(n||0).toLocaleString('en-US');
+  const emojiFor=i=>['🧑','👷','👩'][i%3];
+  const list=$('list'), totbar=$('totbar');
+
+  function refreshKpis(){
+    const appr=reports.filter(r=>r.decision==='approved');
+    $('kEmp').textContent=reports.length;
+    $('kMiles').textContent=miles(reports.reduce((a,r)=>a+r.total_miles,0));
+    $('kAppr').textContent=appr.length;
+    $('kAmt').textContent=money(appr.reduce((a,r)=>a+r.est_reimb,0));
+  }
+  function renderTotals(){
+    const appr=reports.filter(r=>r.decision==='approved');
+    const flags=reports.reduce((a,r)=>a+(r.flags.length?1:0),0);
+    totbar.style.display='block';
+    totbar.innerHTML='<b>'+reports.length+'</b> report(s) &middot; <b>'+appr.length+'</b> approved &middot; '+
+      'approved total <b>'+money(appr.reduce((a,r)=>a+r.est_reimb,0))+'</b>'+
+      (flags?' &middot; <span style="color:var(--amber)">&#9888; '+flags+' need a look</span>':'');
+    refreshKpis();
+  }
+  function pillHtml(d){ return d==='approved'?'<span class="pill ok">&#9679; approved</span>'
+      : d==='hold'?'<span class="pill hold">&#9679; on hold</span>'
+      : '<span class="pill wait">&#9679; waiting</span>'; }
+  function renderList(){
+    list.style.display='flex'; list.innerHTML='';
+    reports.forEach((p,i)=>{
+      const c=document.createElement('div'); c.className='card'+(p.flags.length?' flagged':'');
+      const fl=p.flags.length?'<div class="flag">&#9888; '+p.flags.join('; ')+'</div>':'';
+      c.innerHTML='<div class="emoji">'+emojiFor(i)+'</div>'+
+        '<div class="info"><div class="nm">'+p.employee+'</div>'+
+        '<div class="meta">'+p.month+' &middot; '+miles(p.total_miles)+' miles &middot; rate '+p.rate+
+        ' &middot; <b style="color:#fff">'+money(p.est_reimb)+'</b></div>'+fl+'</div>'+
+        '<span id="pill'+i+'">'+pillHtml(p.decision)+'</span>'+
+        '<button class="mini appr" data-i="'+i+'">Approve</button>'+
+        '<button class="mini hold" data-i="'+i+'">Hold</button>';
+      list.appendChild(c);
+    });
+    list.querySelectorAll('.appr').forEach(b=>b.onclick=()=>decide(+b.dataset.i,'approved'));
+    list.querySelectorAll('.hold').forEach(b=>b.onclick=()=>decide(+b.dataset.i,'hold'));
+    refreshSend();
+  }
+  function decide(i,d){ reports[i].decision=d; $('pill'+i).innerHTML=pillHtml(d); renderTotals(); refreshSend(); }
+  function refreshSend(){ $('bSend').disabled=!reports.some(r=>r.decision==='approved'); }
+
+  $('bReview').onclick=()=>{ renderList(); renderTotals(); $('bApprove').disabled=false;
+    $('statusText').innerHTML='Review each person. Press <b>Approve</b>/<b>Hold</b>, or <b>&#9989; APPROVE ALL</b>.'; };
+  $('bApprove').onclick=()=>{ reports.forEach((r,i)=>{ r.decision='approved';
+      const el=$('pill'+i); if(el) el.innerHTML=pillHtml('approved'); });
+    renderTotals(); refreshSend();
+    $('statusText').innerHTML='&#128077; All approved. Press <b>&#128231; SEND</b> to draft the Director email.'; };
+  $('bSend').onclick=()=>{
+    const appr=reports.filter(r=>r.decision==='approved'); if(!appr.length) return;
+    const sum=appr.reduce((a,r)=>a+r.est_reimb,0);
+    $('emSubj').textContent='Fleet Gas Reimbursement — '+appr.length+' approved ('+money(sum)+')';
+    const lines=appr.map(r=>'  • '+r.employee+' — '+r.month+' — '+miles(r.total_miles)+' mi @ '+r.rate+' = '+money(r.est_reimb));
+    $('emailBody').value='Hello,\n\nHR has reviewed and approved the following mileage reimbursements for May 2026:\n\n'+
+      lines.join('\n')+'\n\nApproved total: '+money(sum)+'   ('+appr.length+' employees)\n\n'+
+      'Please approve for payment.\n\nThank you,\nHR Team';
+    $('modal').classList.add('show');
+  };
+  $('emClose').onclick=()=>$('modal').classList.remove('show');
+  refreshKpis();
+</script>
+</body>
+</html>

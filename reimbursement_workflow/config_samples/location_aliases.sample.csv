@@ -1,0 +1,3 @@
+raw_pattern,site_code,site_name,verified_reason
+123 demo blvd,0002,Demo Store North,"Fictional sample verified alias -> site 0002. Only add an alias when the mapping is certain and unique."
+west store,0003,Demo Store West,"Fictional sample verified alias -> site 0003."

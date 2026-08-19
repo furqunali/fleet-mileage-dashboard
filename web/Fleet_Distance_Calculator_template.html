@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fleet Site-to-Site Distance Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --asphalt: #10151c;
+    --asphalt-2: #171e27;
+    --card: #1b232e;
+    --card-line: #3c4959;
+    --ink: #f5f8fb;
+    --ink-dim: #c7d6e4;
+    --ink-faint: #a4b6c8;
+    --yellow: #ffc72c;
+    --yellow-dim: #9c7d24;
+    --cstore: #4fb0e8;
+    --depot: #ff7a52;
+    --office: #ffc72c;
+    --home: #52d1a0;
+    --good: #57c785;
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 15% -10%, #1a2635 0%, transparent 60%),
+      radial-gradient(ellipse 700px 500px at 100% 0%, #1c1f28 0%, transparent 55%),
+      var(--asphalt);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px; margin:0 auto; padding:28px 20px 80px;}
+
+  /* ---- Header ---- */
+  header{
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between;
+    gap:20px; padding-bottom:22px; margin-bottom:26px;
+    border-bottom:1px dashed var(--card-line);
+  }
+  .brand-eyebrow{
+    font-family:'Space Mono', monospace; font-size:12px; letter-spacing:.18em;
+    color:var(--yellow); text-transform:uppercase; margin:0 0 8px;
+    display:flex; align-items:center; gap:8px;
+  }
+  .brand-eyebrow::before{content:"●"; font-size:8px; color:var(--good);}
+  h1{
+    font-family:'Oswald', sans-serif; font-weight:700; font-size:clamp(28px,4vw,42px);
+    letter-spacing:.01em; margin:0; text-transform:uppercase; line-height:1.05;
+  }
+  .office-card{
+    background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    padding:14px 18px; min-width:270px;
+  }
+  .office-card .lbl{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.14em; color:var(--ink-faint); text-transform:uppercase;}
+  .office-card .name{font-family:'Oswald',sans-serif; font-size:17px; font-weight:600; color:var(--yellow); margin:3px 0 2px;}
+  .office-card .addr{font-size:12.5px; color:var(--ink-dim);}
+
+  /* ---- Section title ---- */
+  .section-head{display:flex; align-items:baseline; gap:12px; margin:44px 0 16px;}
+  .section-head .num{font-family:'Space Mono',monospace; color:var(--yellow-dim); font-size:13px;}
+  .section-head h2{font-family:'Oswald',sans-serif; text-transform:uppercase; font-size:20px; letter-spacing:.03em; margin:0; font-weight:600;}
+  .section-head .rule{flex:1; height:1px; background:var(--card-line);}
+  .section-sub{color:var(--ink-dim); font-size:13.5px; margin:-10px 0 20px; max-width:640px;}
+
+  /* ---- Calculator card ---- */
+  .calc{
+    background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    padding:26px; position:relative; overflow:hidden;
+  }
+  .calc::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:3px;
+    background:repeating-linear-gradient(90deg, var(--yellow) 0 22px, transparent 22px 40px);
+    opacity:.6;
+  }
+  .calc-grid{display:grid; grid-template-columns:1fr auto 1fr; gap:18px; align-items:end;}
+  @media (max-width:720px){ .calc-grid{grid-template-columns:1fr;} .swap-btn{justify-self:center;} }
+  .field label{
+    display:block; font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.12em;
+    color:var(--ink-faint); text-transform:uppercase; margin-bottom:8px;
+  }
+  .combo{position:relative;}
+  .combo input{
+    width:100%; padding:13px 14px; border-radius:8px; border:1px solid var(--card-line);
+    background:var(--asphalt-2); color:var(--ink); font-size:14.5px; font-family:'Inter',sans-serif;
+    outline:none; transition:border-color .15s;
+  }
+  .combo input:focus{border-color:var(--yellow);}
+  .combo .taglist{
+    position:absolute; top:calc(100% + 6px); left:0; right:0; background:#141b24;
+    border:1px solid var(--card-line); border-radius:8px; max-height:260px; overflow-y:auto;
+    z-index:20; display:none; box-shadow:0 12px 28px rgba(0,0,0,.45);
+  }
+  .combo .taglist.open{display:block;}
+  .combo .opt{
+    padding:10px 14px; cursor:pointer; font-size:13.5px; border-bottom:1px solid #2e3947;
+    display:flex; justify-content:space-between; gap:10px; align-items:center;
+  }
+  .combo .opt:last-child{border-bottom:none;}
+  .combo .opt:hover, .combo .opt.active{background:#20293450;}
+  .combo .opt .oname{color:var(--ink);}
+  .combo .opt .ocode{font-family:'Space Mono',monospace; font-size:10.5px; color:var(--ink-faint);}
+  .combo .opt .dot{width:7px; height:7px; border-radius:50%; display:inline-block; margin-right:7px;}
+  .swap-btn{
+    width:42px; height:42px; border-radius:50%; border:1px solid var(--card-line);
+    background:var(--asphalt-2); color:var(--yellow); cursor:pointer; font-size:16px;
+    display:flex; align-items:center; justify-content:center; transition:transform .2s, border-color .2s;
+  }
+  .swap-btn:hover{border-color:var(--yellow); transform:rotate(180deg);}
+
+  .result{
+    margin-top:24px; padding:22px 24px; border-radius:8px; background:var(--asphalt-2);
+    border:1px solid var(--card-line);
+    display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;
+  }
+  .result .miles-num{font-family:'Oswald',sans-serif; font-weight:700; font-size:44px; color:var(--yellow); line-height:1;}
+  .result .miles-lbl{font-family:'Space Mono',monospace; font-size:11px; letter-spacing:.1em; color:var(--ink-faint); text-transform:uppercase; margin-top:4px;}
+  .result .route-desc{font-size:13.5px; color:var(--ink-dim); max-width:420px;}
+  .result .route-desc b{color:var(--ink); font-weight:600;}
+  .result.placeholder .miles-num{color:var(--ink-faint); font-size:20px;}
+
+  /* ---- Radial map ---- */
+  .map-shell{
+    background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    padding:20px; display:grid; grid-template-columns:1fr 260px; gap:22px;
+  }
+  @media (max-width:820px){ .map-shell{grid-template-columns:1fr;} }
+  .map-svg-holder{position:relative;}
+  .map-legend{display:flex; flex-direction:column; gap:14px; padding-top:6px;}
+  .legend-item{display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--ink-dim);}
+  .legend-dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+  .legend-title{font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.12em; color:var(--ink-faint); text-transform:uppercase; margin-bottom:2px;}
+  .site-node{cursor:pointer;}
+  .site-node circle{transition:r .12s, stroke-width .12s;}
+  .site-node:hover circle, .site-node.selected circle{stroke-width:2.5;}
+  .site-node.selected circle{r:8;}
+  .site-node text{pointer-events:none;}
+  .map-tip{
+    position:absolute; background:#0c1016; border:1px solid var(--card-line); border-radius:6px;
+    padding:9px 11px; font-size:12px; pointer-events:none; display:none; z-index:30; max-width:220px;
+    box-shadow:0 8px 20px rgba(0,0,0,.5);
+  }
+  .map-tip .t-name{color:var(--ink); font-weight:600; margin-bottom:2px;}
+  .map-tip .t-addr{color:var(--ink-dim); font-size:11px;}
+  .map-tip .t-miles{color:var(--yellow); font-family:'Space Mono',monospace; margin-top:4px;}
+  .ring-label{font-family:'Space Mono',monospace; font-size:9.5px; fill:var(--ink-dim);}
+
+  #leaflet-map{height:480px; width:100%; border-radius:8px; overflow:hidden; background:var(--asphalt-2);}
+  #map-status{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background:rgba(12,16,22,.88); border-radius:8px; font-family:'Space Mono',monospace; font-size:12.5px;
+    color:var(--ink-dim); text-align:center; padding:20px; gap:6px; z-index:5;
+  }
+  #map-status .sub{color:var(--ink-faint); font-size:11px;}
+  .leaflet-popup-content-wrapper{background:#fff; color:#202124; border:1px solid #dadce0; border-radius:8px;}
+  .leaflet-popup-tip{background:#fff;}
+  .leaflet-popup-content{font-family:'Inter',sans-serif; font-size:13px; line-height:1.5;}
+  .leaflet-popup-content b{color:#1a5fb4;}
+  .leaflet-container{font-family:'Inter',sans-serif; background:#e8eaed;}
+  .mile-chip{
+    background:#fff; border:1px solid #dadce0; color:#202124; font-family:'Inter',sans-serif; font-weight:600;
+    font-size:12.5px; padding:4px 10px; border-radius:16px; white-space:nowrap; box-shadow:0 1px 4px rgba(0,0,0,.25);
+  }
+
+  /* ---- Directory ---- */
+  .dir-controls{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+  .dir-controls input[type=text]{
+    flex:1; min-width:220px; padding:11px 14px; border-radius:8px; border:1px solid var(--card-line);
+    background:var(--card); color:var(--ink); font-size:13.5px; outline:none;
+  }
+  .dir-controls input[type=text]:focus{border-color:var(--yellow);}
+  .chip-filter{display:flex; gap:8px;}
+  .chip{
+    padding:10px 16px; border-radius:20px; border:1px solid var(--card-line); background:var(--card);
+    color:var(--ink-dim); font-size:12.5px; cursor:pointer; font-family:'Space Mono',monospace;
+    letter-spacing:.04em; transition:all .15s;
+  }
+  .chip.active{border-color:var(--yellow); color:var(--yellow); background:#241f10;}
+  table{width:100%; border-collapse:collapse; background:var(--card); border-radius:var(--radius); overflow:hidden;}
+  thead th{
+    text-align:left; font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--ink-faint); padding:12px 16px; border-bottom:1px solid var(--card-line);
+    cursor:pointer; user-select:none; white-space:nowrap;
+  }
+  thead th:hover{color:var(--yellow);}
+  thead th .arrow{opacity:.5; margin-left:4px;}
+  tbody td{padding:12px 16px; border-bottom:1px solid #2e3947; font-size:13px; vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:#2a374a70;}
+  .code-pill{font-family:'Space Mono',monospace; font-size:11.5px; background:var(--asphalt-2); padding:3px 8px; border-radius:5px; color:var(--ink-dim); white-space:nowrap;}
+  .type-pill{font-size:11px; padding:3px 9px; border-radius:12px; font-weight:600; white-space:nowrap;}
+  .type-pill.cstore{background:#12303f; color:var(--cstore);}
+  .type-pill.depot{background:#3f2013; color:var(--depot);}
+  .type-pill.office{background:#3a2e08; color:var(--office);}
+  .type-pill.home{background:#0f3527; color:var(--home);}
+  .row-name{color:var(--ink); font-weight:500;}
+  .row-addr{color:var(--ink-dim); font-size:12px;}
+  .miles-cell{font-family:'Space Mono',monospace; color:var(--yellow); text-align:right;}
+  .use-btn{
+    background:none; border:1px solid var(--card-line); color:var(--ink-dim); font-size:11px;
+    padding:5px 10px; border-radius:6px; cursor:pointer; font-family:'Space Mono',monospace;
+  }
+  .use-btn:hover{border-color:var(--yellow); color:var(--yellow);}
+  .empty-row td{text-align:center; color:var(--ink-faint); padding:30px;}
+
+  /* ---- Monthly travel plan ---- */
+  .plan-toolbar{display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin-bottom:16px;}
+  .plan-toolbar .field{min-width:150px;}
+  .plan-toolbar .field.grow{flex:1; min-width:180px;}
+  .plan-toolbar label{display:block; font-size:11.5px; letter-spacing:.04em; text-transform:uppercase; color:var(--ink-faint); margin-bottom:6px; font-family:'Space Mono',monospace;}
+  .plan-toolbar select, .plan-toolbar input{
+    width:100%; background:var(--asphalt-2); border:1px solid var(--card-line); color:var(--ink);
+    border-radius:8px; padding:9px 11px; font-size:13.5px; font-family:inherit;
+  }
+  .plan-toolbar select:focus, .plan-toolbar input:focus{outline:none; border-color:var(--yellow);}
+  .plan-btn{
+    background:var(--yellow); color:#1b1400; border:none; border-radius:8px; padding:10px 16px;
+    font-weight:700; font-size:12.5px; cursor:pointer; font-family:'Oswald',sans-serif; letter-spacing:.04em; white-space:nowrap;
+  }
+  .plan-btn.ghost{background:transparent; color:var(--ink-dim); border:1px solid var(--card-line);}
+  .plan-btn.ghost:hover{border-color:var(--yellow); color:var(--yellow);}
+  .plan-table-wrap{max-height:540px; overflow:auto; border:1px solid var(--card-line); border-radius:10px;}
+  table.plan-table{width:100%; border-collapse:collapse; font-size:13px; min-width:760px;}
+  table.plan-table thead th{
+    position:sticky; top:0; z-index:2; background:#1c242f; color:var(--ink-faint);
+    font-family:'Space Mono',monospace; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    padding:11px 10px; text-align:left; border-bottom:1px solid var(--card-line); white-space:nowrap;
+  }
+  table.plan-table tbody td{padding:6px 8px; border-bottom:1px solid #2a3542; vertical-align:middle;}
+  table.plan-table tbody tr:hover{background:#2a374a45;}
+  table.plan-table .pl-num{color:var(--ink-faint); font-family:'Space Mono',monospace; width:34px; text-align:center;}
+  table.plan-table input, table.plan-table select{
+    width:100%; background:#131922; border:1px solid #2e3947; color:var(--ink);
+    border-radius:6px; padding:7px 8px; font-size:12.5px; font-family:inherit;
+  }
+  table.plan-table input:focus, table.plan-table select:focus{outline:none; border-color:var(--yellow);}
+  table.plan-table input[type=date]::-webkit-calendar-picker-indicator{filter:invert(.75);}
+  table.plan-table .pl-date{min-width:140px;}
+  table.plan-table .pl-from, table.plan-table .pl-to{min-width:180px;}
+  table.plan-table .pl-miles{font-family:'Space Mono',monospace; color:var(--yellow); text-align:right; white-space:nowrap; width:60px; padding-right:12px;}
+  table.plan-table .pl-notes{min-width:120px;}
+  .mini-btn{
+    width:26px; height:26px; border-radius:6px; border:1px solid var(--card-line); background:transparent;
+    color:var(--ink-dim); cursor:pointer; font-size:12px; display:inline-flex; align-items:center; justify-content:center;
+  }
+  .mini-btn:hover{border-color:var(--yellow); color:var(--yellow);}
+  .mini-btn.danger:hover{border-color:var(--depot); color:var(--depot);}
+
+  /* ---- Distance matrix chart ---- */
+  .matrix-shell{
+    background:var(--card); border:1px solid var(--card-line); border-radius:var(--radius);
+    overflow:auto; max-height:560px; position:relative;
+  }
+  .matrix-table{border-collapse:separate; border-spacing:0; font-size:11.5px; font-family:'Space Mono',monospace; overflow:visible;}
+  .matrix-table th, .matrix-table td{padding:7px 10px; text-align:center; white-space:nowrap; border-bottom:1px solid #2e3947; border-right:1px solid #2e3947;}
+  .matrix-table thead th{
+    position:sticky; top:0; background:#1c2531; color:var(--ink); z-index:5; font-weight:600;
+    height:110px; vertical-align:bottom; padding-bottom:10px;
+  }
+  .matrix-table thead th .rot{writing-mode:vertical-rl; transform:rotate(180deg); display:inline-block;}
+  .matrix-table thead th.corner{position:sticky; left:0; top:0; z-index:7; background:#12181f;}
+  .matrix-table tbody th{
+    position:sticky; left:0; background:#1c2531; color:var(--ink); text-align:left; z-index:4; font-weight:600;
+  }
+  .matrix-table td{color:var(--ink); font-weight:500;}
+  .matrix-table td.diag{background:#26313e; color:var(--ink-faint);}
+  .matrix-table tr:hover td, .matrix-table tr:hover th{background:#2a3849 !important;}
+  .matrix-table .col-hi{background:#2a3849 !important;}
+  .matrix-table .office-row th, .matrix-table td.office-col{color:var(--yellow);}
+  .matrix-table td.office-col, .matrix-table .office-row-cell, .matrix-table .office-head-row, .matrix-table .office-head-col{background:#1c2531;}
+  .matrix-table td.office-corner-cell{background:#26313e;}
+  .matrix-table td.office-col{border-right:2px solid #6b5720;}
+  .matrix-table .office-row-cell, .matrix-table .office-head-row{border-bottom:2px solid #6b5720;}
+  .matrix-table .office-corner-cell{border-right:2px solid #6b5720; border-bottom:2px solid #6b5720;}
+
+  /* ---- Save to Reports ---- */
+  .plan-save-status{margin:2px 0 4px; font-family:'Space Mono',monospace; font-size:12px; color:var(--home); min-height:16px;}
+  .plan-save-status.warn{color:var(--depot);}
+  .reports-head{display:flex; align-items:baseline; gap:12px; margin:6px 0 10px;}
+  .reports-head h3{font-family:'Oswald',sans-serif; text-transform:uppercase; letter-spacing:.04em; font-size:18px; margin:0; color:var(--ink);}
+  .reports-head .count{font-family:'Space Mono',monospace; font-size:12px; color:var(--ink-faint);}
+  .reports-list{display:flex; flex-direction:column; gap:10px;}
+  .report-card{
+    display:flex; flex-wrap:wrap; align-items:center; gap:14px; justify-content:space-between;
+    background:var(--card); border:1px solid var(--card-line); border-radius:10px; padding:13px 16px;
+  }
+  .report-card .rc-main{min-width:210px; flex:1;}
+  .report-card .rc-title{font-weight:600; color:var(--ink); font-size:14.5px;}
+  .report-card .rc-sub{font-family:'Space Mono',monospace; font-size:11.5px; color:var(--ink-faint); margin-top:3px;}
+  .report-card .rc-stats{font-family:'Space Mono',monospace; font-size:12.5px; color:var(--ink-dim); white-space:nowrap;}
+  .report-card .rc-stats b{color:var(--yellow);}
+  .report-card .rc-actions{display:flex; gap:8px;}
+  .reports-empty{color:var(--ink-faint); font-size:13px; padding:18px; border:1px dashed var(--card-line); border-radius:10px; text-align:center;}
+
+  /* ---- Printable report (for email / PDF) — only this prints ---- */
+  #print-area{display:none;}
+  @media print{
+    body{background:#fff !important;}
+    .wrap{display:none !important;}
+    #print-area{display:block !important; color:#111; font-family:'Inter',Arial,sans-serif;}
+    #print-area *{-webkit-print-color-adjust:exact; print-color-adjust:exact;}
+    @page{margin:14mm;}
+  }
+  #print-area .pr-band{background:#ffc72c; color:#1b1400; padding:10px 16px; font-family:'Oswald',sans-serif; font-weight:700; letter-spacing:.05em; font-size:14px;}
+  #print-area h1.pr-title{font-family:'Oswald',sans-serif; font-size:26px; margin:16px 0 2px; text-transform:uppercase; color:#111;}
+  #print-area .pr-meta{display:flex; flex-wrap:wrap; gap:10px 30px; margin:10px 0 16px; font-size:13px; color:#333;}
+  #print-area .pr-meta b{color:#111;}
+  #print-area table.pr-table{width:100%; border-collapse:collapse; font-size:12px;}
+  #print-area table.pr-table th{background:#222c38; color:#fff; text-align:left; padding:7px 9px; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;}
+  #print-area table.pr-table td{padding:6px 9px; border-bottom:1px solid #ddd; vertical-align:top;}
+  #print-area table.pr-table td.num{text-align:right; font-variant-numeric:tabular-nums;}
+  #print-area table.pr-table tr:nth-child(even) td{background:#f6f8fa;}
+  #print-area .pr-tot{display:flex; justify-content:flex-end; gap:44px; margin-top:16px;}
+  #print-area .pr-tot .lbl{color:#555; text-transform:uppercase; font-size:10.5px; letter-spacing:.06em;}
+  #print-area .pr-tot .val{font-weight:700; font-size:19px; color:#111; margin-top:2px;}
+  #print-area .pr-foot{margin-top:24px; font-size:10.5px; color:#777; border-top:1px solid #ccc; padding-top:8px; line-height:1.5;}
+
+  footer{margin-top:50px; padding-top:20px; border-top:1px dashed var(--card-line); color:var(--ink-faint); font-size:11.5px; font-family:'Space Mono',monospace; display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <p class="brand-eyebrow">Fleet &middot; Fleet Distance Reference</p>
+      <h1>Site-to-Site Distance<br>Calculator</h1>
+    </div>
+    <div class="office-card">
+      <div class="lbl">Head Office &middot; Center Point</div>
+      <div class="name" id="office-name">—</div>
+      <div class="addr" id="office-addr">—</div>
+    </div>
+  </header>
+
+  <!-- 1. CALCULATOR -->
+  <div class="section-head"><span class="num">01</span><h2>Distance Calculator</h2><span class="rule"></span></div>
+  <p class="section-sub">Select any two sites in From and To to see the road distance between them. The head office is included in the list.</p>
+
+  <div class="calc">
+    <div class="calc-grid">
+      <div class="field">
+        <label for="from-input">From</label>
+        <div class="combo" id="combo-from">
+          <input type="text" id="from-input" placeholder="Search site or code…" autocomplete="off">
+          <div class="taglist" id="from-list"></div>
+        </div>
+      </div>
+      <button class="swap-btn" id="swap-btn" title="Swap">⇄</button>
+      <div class="field">
+        <label for="to-input">To</label>
+        <div class="combo" id="combo-to">
+          <input type="text" id="to-input" placeholder="Search site or code…" autocomplete="off">
+          <div class="taglist" id="to-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result placeholder" id="result-box">
+      <div>
+        <div class="miles-num" id="miles-num">Select two sites</div>
+        <div class="miles-lbl" id="miles-lbl">to see distance</div>
+      </div>
+      <div class="route-desc" id="route-desc"></div>
+    </div>
+  </div>
+
+  <!-- 2. MONTHLY TRAVEL PLAN -->
+  <div class="section-head"><span class="num">02</span><h2>Monthly Travel Plan</h2><span class="rule"></span></div>
+  <p class="section-sub">Plan one employee's month of trips — pick the month, then fill each day's date and From → To. Miles auto-fill from the Matrix (road-distance estimates). 40 trip slots by default; add more if a month needs them.</p>
+
+  <div class="calc" id="plan-card">
+    <div class="plan-toolbar">
+      <div class="field grow">
+        <label for="plan-emp">Employee</label>
+        <input type="text" id="plan-emp" placeholder="Name (optional)">
+      </div>
+      <div class="field">
+        <label for="plan-month">Month</label>
+        <select id="plan-month"></select>
+      </div>
+      <div class="field">
+        <label for="plan-rate">Rate $/mi (optional)</label>
+        <input type="number" id="plan-rate" min="0" step="0.01" placeholder="e.g. 0.27">
+      </div>
+      <button class="plan-btn" id="plan-save" type="button">✓ Save to Reports</button>
+      <button class="plan-btn ghost" id="plan-add" type="button">+ 5 rows</button>
+      <button class="plan-btn ghost" id="plan-clear" type="button">Clear all</button>
+    </div>
+    <div class="plan-save-status" id="plan-save-status"></div>
+
+    <div class="plan-table-wrap">
+      <table class="plan-table">
+        <thead><tr>
+          <th>#</th><th>Date</th><th>From</th><th>To</th><th style="text-align:right">Miles</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody id="plan-body"></tbody>
+      </table>
+    </div>
+
+    <div class="result" id="plan-result-box" style="margin-top:16px;">
+      <div>
+        <div class="miles-num" id="plan-total">0</div>
+        <div class="miles-lbl">total plan miles</div>
+      </div>
+      <div class="route-desc" id="plan-desc">Pick a month and add trips above.</div>
+    </div>
+
+    <div class="reports-head" style="margin-top:24px;">
+      <h3>Saved Reports</h3><span class="count" id="reports-count"></span>
+    </div>
+    <p class="section-sub" style="margin-top:0;">Click <b>Save to Reports</b> above to keep a copy of a plan here (stored in this browser). <b>Print</b> opens a clean one-plan sheet you can print or “Save as PDF” to email — only the plan prints, nothing else on the page.</p>
+    <div class="reports-list" id="reports-list"></div>
+  </div>
+
+  <!-- 3. MAP -->
+  <div class="section-head"><span class="num">03</span><h2>Network Map</h2><span class="rule"></span></div>
+  <p class="section-sub">Real road map — the head office and every site are pinned at their location. Click any pin to auto-fill the calculator's "To" field; selecting a route draws the driving path on the map. Pin positions are approximate (ZIP/city-level for some sites).</p>
+
+  <div class="map-shell">
+    <div class="map-svg-holder" id="map-holder">
+      <div id="leaflet-map"></div>
+      <div id="map-status">
+        <div>Locating sites on map…</div>
+        <div class="sub">First load only — results are cached in your browser after this.</div>
+      </div>
+    </div>
+    <div class="map-legend">
+      <div>
+        <div class="legend-title">Site Type</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--office)"></span> Head Office</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--cstore)"></span> C-Store</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--depot)"></span> Depot</div>
+        <div class="legend-item"><span class="legend-dot" style="background:var(--home)"></span> Employee Home</div>
+      </div>
+      <div>
+        <div class="legend-title">Routes</div>
+        <div class="legend-item">Drawn on selection — follows real roads via OSRM (straight-line fallback if routing is unavailable)</div>
+      </div>
+      <div>
+        <div class="legend-title">Selected</div>
+        <div class="legend-item" id="map-selected-info">No site selected yet</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. DISTANCE MATRIX CHART -->
+  <div class="section-head"><span class="num">04</span><h2>Full Distance Chart</h2><span class="rule"></span></div>
+  <p class="section-sub">Standard grid chart — miles from every site to every other site at a glance. A darker cell background means a greater distance. The yellow border marks the frozen Head Office row and column. Hovering a row or column highlights it.</p>
+  <div class="matrix-shell" id="matrix-shell"></div>
+
+  <!-- 5. DIRECTORY -->
+  <div class="section-head"><span class="num">05</span><h2>Full Site Directory</h2><span class="rule"></span></div>
+  <p class="section-sub">All <span class="site-count">29</span> locations with their code, address, and distance from the head office. Search, or click a column header to sort.</p>
+
+  <div class="dir-controls">
+    <input type="text" id="dir-search" placeholder="Search by name, code, or address…">
+    <div class="chip-filter">
+      <div class="chip active" data-filter="All">All</div>
+      <div class="chip" data-filter="C-Store">C-Store</div>
+      <div class="chip" data-filter="Depot">Depot</div>
+      <div class="chip" data-filter="Employee Home">Employee Home</div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th data-key="code">Code<span class="arrow"></span></th>
+        <th data-key="name">Site Name<span class="arrow"></span></th>
+        <th data-key="address">Address<span class="arrow"></span></th>
+        <th data-key="type">Type<span class="arrow"></span></th>
+        <th data-key="office_miles" style="text-align:right">Miles from Office<span class="arrow"></span></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="dir-body"></tbody>
+  </table>
+
+  <footer>
+    <span>Demo Fleet Distance Reference · Generated from the master workbook · v7 · Data as of 28 Jul 2026</span>
+    <span><span class="site-count">29</span> locations &middot; head office = Demo Fleet Co, 100 Demo Plaza</span>
+  </footer>
+
+</div>
+
+<script>
+const DATA = {"sites": {"0001-O": {"name": "Demo Fleet HQ", "address": "100 Demo Plaza, Demo City, TX 70000", "office_miles": 0, "type": "C-Store", "is_office": true}, "0002": {"name": "Demo Store North", "address": "123 Demo Blvd, Democity, TX 70001", "office_miles": 12, "type": "Depot"}, "0003": {"name": "Demo Store West", "address": "456 Sample Rd, Demotown, TX 70002", "office_miles": 18, "type": "Depot"}, "0004": {"name": "Sample C-Store East", "address": "789 Example Hwy, Sampleville, TX 70003", "office_miles": 9, "type": "C-Store"}, "0005": {"name": "Metro City Depot", "address": "55 Placeholder St, Metro City, TX 70004", "office_miles": 140, "type": "Depot"}, "EH-1": {"name": "Employee A Home (Apt)", "address": "123 Demo St, Democity, TX 70001", "office_miles": 15, "type": "Employee Home"}}, "matrix": {"0001-O": {"0001-O": 0, "0002": 12, "0003": 18, "0004": 9, "0005": 140, "EH-1": 15}, "0002": {"0001-O": 12, "0002": 0, "0003": 11, "0004": 8, "0005": 133, "EH-1": 8}, "0003": {"0001-O": 18, "0002": 11, "0003": 0, "0004": 14, "0005": 127, "EH-1": 8}, "0004": {"0001-O": 9, "0002": 8, "0003": 14, "0004": 0, "0005": 136, "EH-1": 11}, "0005": {"0001-O": 140, "0002": 133, "0003": 127, "0004": 136, "0005": 0, "EH-1": 130}, "EH-1": {"0001-O": 15, "0002": 8, "0003": 8, "0004": 11, "0005": 130, "EH-1": 0}}, "office_code": "0001-O"};
+</script>
+<script>
+(function(){
+  const sites = DATA.sites;
+  const matrix = DATA.matrix;
+  const officeCode = DATA.office_code;
+
+  const codes = Object.keys(sites);
+  // stable display order: office first, then by type, then by office_miles
+  const orderedCodes = [officeCode, ...codes.filter(c=>c!==officeCode)
+    .sort((a,b)=> sites[a].type===sites[b].type
+      ? sites[a].office_miles - sites[b].office_miles
+      : (sites[a].type<sites[b].type?-1:1))];
+
+  function dotColor(code){
+    if(code===officeCode) return 'var(--office)';
+    if(sites[code].type==="Employee Home") return 'var(--home)';
+    return sites[code].type==="Depot" ? 'var(--depot)' : 'var(--cstore)';
+  }
+  function typeLabel(code){
+    return code===officeCode ? 'Head Office' : sites[code].type;
+  }
+  function fmtMiles(v){
+    if(v===0) return '0';
+    return (Math.round(v*10)/10).toString();
+  }
+
+  // ---------- OFFICE CARD ----------
+  document.getElementById('office-name').textContent = sites[officeCode].name + ' (' + officeCode + ')';
+  document.getElementById('office-addr').textContent = sites[officeCode].address;
+
+  // ---------- DISTANCE LOOKUP ----------
+  function getDistance(a, b){
+    if(a===b) return 0;
+    if(matrix[a] && matrix[a][b] !== undefined) return matrix[a][b];
+    if(matrix[b] && matrix[b][a] !== undefined) return matrix[b][a];
+    return null;
+  }
+
+  // ---------- SEARCHABLE COMBO ----------
+  function buildCombo(inputId, listId, onPick){
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    let filtered = orderedCodes;
+    let activeIdx = -1;
+
+    function render(query){
+      const q = (query||'').toLowerCase().trim();
+      filtered = orderedCodes.filter(c=>{
+        const s = sites[c];
+        return !q || s.name.toLowerCase().includes(q) || c.toLowerCase().includes(q) || s.address.toLowerCase().includes(q);
+      });
+      list.innerHTML = filtered.map((c,i)=>{
+        const s = sites[c];
+        return `<div class="opt" data-code="${c}" data-idx="${i}">
+          <span><span class="dot" style="background:${dotColor(c)}"></span><span class="oname">${s.name}${c===officeCode?' — HEAD OFFICE':''}</span></span>
+          <span class="ocode">${c}</span>
+        </div>`;
+      }).join('') || `<div class="opt" style="color:var(--ink-faint)">No sites found</div>`;
+      activeIdx = -1;
+    }
+
+    input.addEventListener('focus', ()=>{ render(input.value); list.classList.add('open'); });
+    input.addEventListener('input', ()=>{ render(input.value); list.classList.add('open'); input.dataset.code=''; });
+    input.addEventListener('keydown', (e)=>{
+      const opts = list.querySelectorAll('.opt[data-code]');
+      if(e.key==='ArrowDown'){ e.preventDefault(); activeIdx=Math.min(activeIdx+1, opts.length-1); updateActive(opts); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); activeIdx=Math.max(activeIdx-1,0); updateActive(opts); }
+      else if(e.key==='Enter'){ e.preventDefault(); if(activeIdx>=0 && opts[activeIdx]) pick(opts[activeIdx].dataset.code); }
+      else if(e.key==='Escape'){ list.classList.remove('open'); }
+    });
+    function updateActive(opts){
+      opts.forEach(o=>o.classList.remove('active'));
+      if(opts[activeIdx]){ opts[activeIdx].classList.add('active'); opts[activeIdx].scrollIntoView({block:'nearest'}); }
+    }
+    list.addEventListener('mousedown', (e)=>{
+      const opt = e.target.closest('.opt[data-code]');
+      if(opt) pick(opt.dataset.code);
+    });
+    document.addEventListener('click', (e)=>{
+      if(!list.contains(e.target) && e.target!==input) list.classList.remove('open');
+    });
+
+    function pick(code){
+      const s = sites[code];
+      input.value = s.name + (code===officeCode?' — HEAD OFFICE':'') + ' (' + code + ')';
+      input.dataset.code = code;
+      list.classList.remove('open');
+      onPick(code);
+    }
+    render('');
+    return { pick, getCode: ()=>input.dataset.code };
+  }
+
+  let fromCombo, toCombo;
+  fromCombo = buildCombo('from-input','from-list', ()=>computeResult());
+  toCombo = buildCombo('to-input','to-list', ()=>computeResult());
+
+  document.getElementById('swap-btn').addEventListener('click', ()=>{
+    const fCode = fromCombo.getCode(), tCode = toCombo.getCode();
+    if(fCode) toCombo.pick(fCode); else document.getElementById('to-input').value='';
+    if(tCode) fromCombo.pick(tCode); else document.getElementById('from-input').value='';
+    if(!fCode) document.getElementById('to-input').value='';
+    if(!tCode) document.getElementById('from-input').value='';
+    computeResult();
+  });
+
+  function computeResult(){
+    const a = fromCombo.getCode(), b = toCombo.getCode();
+    const box = document.getElementById('result-box');
+    const numEl = document.getElementById('miles-num');
+    const lblEl = document.getElementById('miles-lbl');
+    const descEl = document.getElementById('route-desc');
+    if(!a || !b){
+      box.classList.add('placeholder');
+      numEl.textContent = 'Select two sites';
+      lblEl.textContent = 'to see distance';
+      descEl.innerHTML = '';
+      return;
+    }
+    const d = getDistance(a,b);
+    box.classList.remove('placeholder');
+    if(d===null){
+      numEl.textContent = 'N/A';
+      lblEl.textContent = 'distance not recorded';
+      descEl.innerHTML = '';
+      return;
+    }
+    numEl.textContent = fmtMiles(d);
+    lblEl.textContent = 'miles';
+    if(a===b){
+      descEl.innerHTML = `<b>${sites[a].name}</b> is the same site.`;
+    } else {
+      descEl.innerHTML = `<b>${sites[a].name}</b> (${a}) &rarr; <b>${sites[b].name}</b> (${b})`;
+    }
+  }
+
+  // ---------- REAL ROAD MAP (Leaflet) + OSRM ROUTING ----------
+  // Coordinates come from the workbook (Directory!K/L), injected into DATA by
+  // build_html_from_workbook.py. No runtime geocoding. Routes follow real roads
+  // via the keyless OSRM demo server, with a straight-line fallback on failure.
+  var MAP_OK = false;
+  var leafletMap = null, routeLayer = null, routeCaptionEl = null;
+  var rawCoords = {};    // code -> [lat,lon] actual location (used for routing)
+  var dispCoords = {};   // code -> [lat,lon] offset so co-located pins stay clickable
+  var osrmCache = {};    // sequence key -> {coords, miles} | 'straight'
+
+  function computeDisplayCoords(){
+    var groups = {};
+    orderedCodes.forEach(function(c){
+      var cc = rawCoords[c]; if(!cc) return;
+      var k = cc[0].toFixed(5)+','+cc[1].toFixed(5);
+      (groups[k] = groups[k] || []).push(c);
+    });
+    var out = {};
+    Object.keys(groups).forEach(function(k){
+      var g = groups[k];
+      if(g.length === 1){ out[g[0]] = rawCoords[g[0]].slice(); return; }
+      var R = 0.0004; // ~45 m fan so overlapping sites are individually clickable
+      g.forEach(function(c,i){
+        var ang = 2*Math.PI*i/g.length;
+        out[c] = [rawCoords[c][0] + R*Math.cos(ang), rawCoords[c][1] + R*Math.sin(ang)];
+      });
+    });
+    return out;
+  }
+
+  (function initMap(){
+    var statusEl = document.getElementById('map-status');
+    if(typeof L === 'undefined'){
+      if(statusEl) statusEl.innerHTML = '<div>Map couldn\'t load (map library unavailable).</div><div class="sub">Everything else on this page still works normally.</div>';
+      return;
+    }
+    orderedCodes.forEach(function(c){
+      var s = sites[c];
+      if(s && typeof s.lat === 'number' && typeof s.lon === 'number' && !isNaN(s.lat) && !isNaN(s.lon)){
+        rawCoords[c] = [s.lat, s.lon];
+      }
+    });
+    if(Object.keys(rawCoords).length === 0){
+      if(statusEl) statusEl.innerHTML = '<div>No coordinates found in data.</div><div class="sub">Run geocode_sites.py to add LAT/LON to the Directory tab, then regenerate.</div>';
+      return;
+    }
+    try{
+      leafletMap = L.map('leaflet-map', { scrollWheelZoom:true }).setView([29.72,-95.5], 8);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains:'abcd', maxZoom:19
+      }).addTo(leafletMap);
+
+      dispCoords = computeDisplayCoords();
+      routeLayer = L.layerGroup().addTo(leafletMap);
+      var bounds = [];
+      orderedCodes.forEach(function(c){
+        var cc = dispCoords[c]; if(!cc) return;
+        bounds.push(cc);
+        var isOffice = c === officeCode;
+        var marker = L.circleMarker(cc, {
+          radius: isOffice ? 9 : 6, color:'#171e27', weight:2,
+          fillColor: isOffice ? '#ffc72c' : (sites[c].type==="Employee Home" ? '#52d1a0' : (sites[c].type==="Depot" ? '#ff7a52' : '#4fb0e8')),
+          fillOpacity:0.92
+        }).addTo(leafletMap);
+        marker.bindPopup('<b>'+sites[c].name+'</b>'+(isOffice?' — Head Office':'')+'<br>'+sites[c].address+'<br>'+(isOffice?'Center point':fmtMiles(sites[c].office_miles)+' mi from office'));
+        marker.on('click', function(){
+          if(!isOffice){
+            if(!fromCombo.getCode()) fromCombo.pick(officeCode);
+            toCombo.pick(c);
+            computeResult();
+          }
+          var infoEl = document.getElementById('map-selected-info');
+          if(infoEl) infoEl.innerHTML = '<b style="color:var(--ink)">'+sites[c].name+'</b><br>'+(isOffice?'Head Office':fmtMiles(sites[c].office_miles)+' mi from office');
+        });
+      });
+      if(bounds.length) leafletMap.fitBounds(bounds, { padding:[30,30] });
+      if(statusEl) statusEl.remove();
+
+      routeCaptionEl = document.createElement('div');
+      routeCaptionEl.id = 'map-route-caption';
+      routeCaptionEl.style.cssText = "margin:12px 0 0; font-family:'Space Mono',monospace; font-size:11.5px; letter-spacing:.03em; color:var(--ink-faint); min-height:15px;";
+      var shell = document.querySelector('.map-shell');
+      if(shell && shell.parentNode) shell.parentNode.insertBefore(routeCaptionEl, shell.nextSibling);
+
+      MAP_OK = true;
+
+      // reflect the current calculator selection / route on the map (last action wins)
+      var _cr = computeResult; computeResult = function(){ _cr.apply(this, arguments); mapSyncPointToPoint(); };
+    }catch(e){
+      console.warn('Leaflet setup failed', e);
+      if(statusEl) statusEl.innerHTML = '<div>Map couldn\'t load.</div><div class="sub">Everything else on this page still works normally.</div>';
+    }
+  })();
+
+  var routeDebounce = null;
+  function scheduleRoute(codes, mode){
+    if(!MAP_OK) return;
+    if(routeDebounce) clearTimeout(routeDebounce);
+    routeDebounce = setTimeout(function(){ drawRouteOnMap(codes, mode); }, 280);
+  }
+  function mapSyncPointToPoint(){
+    if(!MAP_OK) return;
+    var a = fromCombo.getCode(), b = toCombo.getCode();
+    if(a && b && a !== b && rawCoords[a] && rawCoords[b]) scheduleRoute([a,b], 'point');
+    else clearRoute();
+  }
+  function clearRoute(){
+    if(routeLayer) routeLayer.clearLayers();
+    if(routeCaptionEl) routeCaptionEl.textContent = '';
+  }
+  function osrmUrl(codes){
+    var pts = codes.filter(function(c){ return rawCoords[c]; })
+                   .map(function(c){ return rawCoords[c][1]+','+rawCoords[c][0]; }); // lon,lat
+    return 'https://router.project-osrm.org/route/v1/driving/'+pts.join(';')+'?overview=full&geometries=geojson';
+  }
+  function drawStraight(codes){
+    var pts = codes.filter(function(c){ return rawCoords[c]; }).map(function(c){ return rawCoords[c]; });
+    routeLayer.clearLayers();
+    if(pts.length < 2){ if(routeCaptionEl) routeCaptionEl.textContent=''; return; }
+    L.polyline(pts, { color:'#ffc72c', weight:4, opacity:.85, dashArray:'5,7', lineCap:'round' }).addTo(routeLayer);
+    leafletMap.fitBounds(pts, { padding:[40,40] });
+    if(routeCaptionEl) routeCaptionEl.innerHTML = '&#9888; Straight-line estimate shown — live road routing unavailable. The mileage figures above (from the Matrix) are unaffected.';
+  }
+  function drawGeo(geo, miles, mode){
+    routeLayer.clearLayers();
+    L.polyline(geo, { color:'#ffc72c', weight:5, opacity:.92, lineCap:'round', lineJoin:'round' }).addTo(routeLayer);
+    leafletMap.fitBounds(geo, { padding:[40,40] });
+    if(routeCaptionEl){
+      var est = (miles != null) ? ' · map path ≈ '+(Math.round(miles*10)/10)+' mi (visual estimate; recorded miles above are authoritative)' : '';
+      routeCaptionEl.innerHTML = (mode === 'multi' ? 'Multi-stop road route' : 'Point-to-point road route') + ' · via OSRM' + est;
+    }
+  }
+  function drawRouteOnMap(codes, mode){
+    if(!MAP_OK) return;
+    var use = codes.filter(function(c){ return rawCoords[c]; });
+    if(use.length < 2){ clearRoute(); return; }
+    var key = mode+':'+use.join('>');
+    var cached = osrmCache[key];
+    if(cached){ (cached === 'straight') ? drawStraight(use) : drawGeo(cached.coords, cached.miles, mode); return; }
+    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    var timer = setTimeout(function(){ if(controller) controller.abort(); }, 8000);
+    fetch(osrmUrl(use), controller ? { signal: controller.signal } : {})
+      .then(function(r){ return r.ok ? r.json() : Promise.reject(new Error('HTTP '+r.status)); })
+      .then(function(data){
+        clearTimeout(timer);
+        if(!data || !data.routes || !data.routes.length || !data.routes[0].geometry) throw new Error('no route');
+        var geo = data.routes[0].geometry.coordinates.map(function(p){ return [p[1], p[0]]; }); // lon,lat -> lat,lon
+        var miles = data.routes[0].distance / 1609.344;
+        osrmCache[key] = { coords: geo, miles: miles };
+        drawGeo(geo, miles, mode);
+      })
+      .catch(function(e){
+        clearTimeout(timer);
+        console.warn('OSRM routing failed; straight-line fallback.', e);
+        osrmCache[key] = 'straight';
+        drawStraight(use);
+      });
+  }
+
+  // ---------- MONTHLY TRAVEL PLAN ----------
+  // A per-day trip log for ONE employee: pick a month, fill Date / From / To per
+  // row; miles auto-fill from the Matrix. Independent legs (not a chained route).
+  const PLAN_START_ROWS = 40;   // trip slots to cover a 30-day month (+ multi-stop days)
+  const PLAN_MAX_ROWS = 80;
+  const MONTH_NAMES = ['January','February','March','April','May','June','July',
+                       'August','September','October','November','December'];
+
+  const planBody  = document.getElementById('plan-body');
+  const planMonth = document.getElementById('plan-month');
+  const planRate  = document.getElementById('plan-rate');
+
+  // month dropdown: Jan 2026 … Dec 2027
+  (function(){
+    let opts = '';
+    [2026, 2027].forEach(function(y){
+      for(let m=0; m<12; m++){
+        const val = y + '-' + String(m+1).padStart(2,'0');
+        opts += `<option value="${val}">${MONTH_NAMES[m]} ${y}</option>`;
+      }
+    });
+    planMonth.innerHTML = opts;
+    planMonth.value = '2026-01';
+  })();
+
+  function siteOptions(){
+    // one <option> per location, in the shared display order (homes included)
+    return '<option value="">— select —</option>' + orderedCodes.map(function(c){
+      const label = c + ' — ' + sites[c].name + (c===officeCode ? ' (HQ)' : '');
+      return `<option value="${c}">${label}</option>`;
+    }).join('');
+  }
+
+  function monthBounds(){
+    const parts = planMonth.value.split('-');
+    const y = +parts[0], m = +parts[1];              // m is 1-based
+    const last = new Date(y, m, 0).getDate();        // day 0 of next month = last day
+    const mm = String(m).padStart(2,'0');
+    return { min: `${y}-${mm}-01`, max: `${y}-${mm}-${String(last).padStart(2,'0')}` };
+  }
+
+  function makeRow(i){
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="pl-num">${i+1}</td>` +
+      `<td><input type="date" class="pl-date"></td>` +
+      `<td><select class="pl-from">${siteOptions()}</select></td>` +
+      `<td><select class="pl-to">${siteOptions()}</select></td>` +
+      `<td class="pl-miles">—</td>` +
+      `<td><input type="text" class="pl-notes" placeholder="…"></td>` +
+      `<td><button class="mini-btn danger pl-clear-row" type="button" title="Clear this row">✕</button></td>`;
+    return tr;
+  }
+
+  function renumber(){
+    planBody.querySelectorAll('tr').forEach(function(tr,i){
+      tr.querySelector('.pl-num').textContent = i+1;
+    });
+  }
+
+  function addRows(n){
+    let count = planBody.querySelectorAll('tr').length;
+    const b = monthBounds();
+    for(let k=0; k<n && count < PLAN_MAX_ROWS; k++, count++){
+      const tr = makeRow(count);
+      const dt = tr.querySelector('.pl-date');
+      dt.min = b.min; dt.max = b.max;
+      planBody.appendChild(tr);
+    }
+  }
+
+  function recalcRow(tr){
+    const from = tr.querySelector('.pl-from').value;
+    const to   = tr.querySelector('.pl-to').value;
+    const cell = tr.querySelector('.pl-miles');
+    let mi = null;
+    if(from && to){
+      if(from === to){ mi = 0; cell.textContent = '0'; }
+      else { mi = getDistance(from, to); cell.textContent = (mi===null ? 'N/A' : fmtMiles(mi)); }
+    } else {
+      cell.textContent = '—';
+    }
+    return { filled: !!(from && to), mi: mi };
+  }
+
+  function recalcPlan(){
+    let total = 0, trips = 0, gaps = 0;
+    planBody.querySelectorAll('tr').forEach(function(tr){
+      const r = recalcRow(tr);
+      if(r.filled){ trips++; if(r.mi===null) gaps++; else total += r.mi; }
+    });
+    document.getElementById('plan-total').textContent = fmtMiles(total);
+    const rate = parseFloat(planRate.value);
+    let txt = `${trips} trip${trips===1?'':'s'} planned &middot; ${fmtMiles(total)} mi`;
+    if(!isNaN(rate) && rate > 0){
+      txt += ` &middot; est. $${(total*rate).toFixed(2)} <span style="color:var(--ink-faint)">@ $${rate.toFixed(2)}/mi</span>`;
+    }
+    if(gaps){
+      txt += ` &middot; <span style="color:var(--depot)">${gaps} leg${gaps===1?'':'s'} have no matrix distance</span>`;
+    }
+    document.getElementById('plan-desc').innerHTML = txt;
+  }
+
+  function applyMonth(){
+    const b = monthBounds();
+    planBody.querySelectorAll('.pl-date').forEach(function(inp){
+      inp.min = b.min; inp.max = b.max;
+      if(inp.value && (inp.value < b.min || inp.value > b.max)) inp.value = '';
+    });
+  }
+
+  // events (delegated)
+  planBody.addEventListener('change', function(e){
+    if(e.target.classList.contains('pl-from') || e.target.classList.contains('pl-to')) recalcPlan();
+  });
+  planBody.addEventListener('click', function(e){
+    if(e.target.classList.contains('pl-clear-row')){
+      const tr = e.target.closest('tr');
+      tr.querySelectorAll('input').forEach(function(i){ i.value=''; });
+      tr.querySelectorAll('select').forEach(function(s){ s.value=''; });
+      recalcPlan();
+    }
+  });
+  planMonth.addEventListener('change', applyMonth);
+  planRate.addEventListener('input', recalcPlan);
+  document.getElementById('plan-add').addEventListener('click', function(){ addRows(5); renumber(); });
+  document.getElementById('plan-clear').addEventListener('click', function(){
+    planBody.querySelectorAll('input').forEach(function(i){ i.value=''; });
+    planBody.querySelectorAll('select').forEach(function(s){ s.value=''; });
+    recalcPlan();
+  });
+
+  addRows(PLAN_START_ROWS);
+  recalcPlan();
+
+  // ---------- SAVE TO REPORTS (per-employee monthly plan, printable for email) ----------
+  // Saved plans persist in localStorage. "Print" builds a clean one-plan sheet in
+  // #print-area; the @media print rules hide the whole app and print only that sheet.
+  const REPORTS_KEY = 'slp_travel_reports_v1';
+  const planEmp     = document.getElementById('plan-emp');
+  const saveBtn     = document.getElementById('plan-save');
+  const saveStatus  = document.getElementById('plan-save-status');
+  const reportsList = document.getElementById('reports-list');
+  const reportsCount= document.getElementById('reports-count');
+
+  function escapeHtml(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function loadReports(){ try{ return JSON.parse(localStorage.getItem(REPORTS_KEY)) || []; }catch(e){ return []; } }
+  function storeReports(a){ try{ localStorage.setItem(REPORTS_KEY, JSON.stringify(a)); }catch(e){} }
+  function monthLabelFromVal(v){ const p=v.split('-'); return MONTH_NAMES[(+p[1])-1] + ' ' + p[0]; }
+  function fmtStamp(iso){ const d=new Date(iso);
+    return d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}) + ' ' +
+           d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'}); }
+
+  function collectPlan(){
+    const rows = []; let total = 0, gaps = 0;
+    planBody.querySelectorAll('tr').forEach(function(tr){
+      const from = tr.querySelector('.pl-from').value;
+      const to   = tr.querySelector('.pl-to').value;
+      if(!from || !to) return;
+      const mi = (from===to) ? 0 : getDistance(from, to);
+      if(mi===null) gaps++; else total += mi;
+      rows.push({ date: tr.querySelector('.pl-date').value || '', from:from, to:to,
+        fromLabel: from + ' — ' + sites[from].name, toLabel: to + ' — ' + sites[to].name,
+        miles: mi, notes: tr.querySelector('.pl-notes').value || '' });
+    });
+    const rate = parseFloat(planRate.value);
+    const hasRate = (!isNaN(rate) && rate > 0);
+    return { employee:(planEmp.value||'').trim(), month:planMonth.value,
+      monthLabel: monthLabelFromVal(planMonth.value), rate: hasRate?rate:null,
+      rows:rows, total:total, gaps:gaps, est: hasRate ? +(total*rate).toFixed(2) : null };
+  }
+
+  function saveReport(){
+    const plan = collectPlan();
+    if(plan.rows.length === 0){
+      saveStatus.classList.add('warn');
+      saveStatus.textContent = 'Add at least one trip (both From and To) before saving.';
+      return;
+    }
+    saveStatus.classList.remove('warn');
+    const reports = loadReports();
+    reports.unshift(Object.assign({ id:'r'+Date.now(), savedAt:new Date().toISOString() }, plan));
+    storeReports(reports);
+    renderReports();
+    saveStatus.textContent = '✓ Saved "' + (plan.employee||'Unnamed') + ' · ' + plan.monthLabel + '" to Saved Reports below.';
+  }
+
+  function renderReports(){
+    const reports = loadReports();
+    reportsCount.textContent = reports.length ? '(' + reports.length + ')' : '';
+    if(!reports.length){
+      reportsList.innerHTML = '<div class="reports-empty">No saved plans yet — fill in a plan above and click “Save to Reports” to keep a copy here.</div>';
+      return;
+    }
+    reportsList.innerHTML = reports.map(function(r){
+      const trips = r.rows.length;
+      const est  = (r.est!=null) ? (' · est <b>$'+r.est.toFixed(2)+'</b>') : '';
+      const gaps = r.gaps ? (' · '+r.gaps+' no-matrix') : '';
+      return '<div class="report-card" data-id="'+r.id+'">'+
+        '<div class="rc-main"><div class="rc-title">'+escapeHtml(r.employee||'Unnamed')+' — '+r.monthLabel+'</div>'+
+          '<div class="rc-sub">saved '+fmtStamp(r.savedAt)+'</div></div>'+
+        '<div class="rc-stats">'+trips+' trip'+(trips===1?'':'s')+' · <b>'+fmtMiles(r.total)+'</b> mi'+est+gaps+'</div>'+
+        '<div class="rc-actions">'+
+          '<button class="use-btn rc-print" type="button">🖨 Print</button>'+
+          '<button class="use-btn rc-load" type="button">Open</button>'+
+          '<button class="use-btn rc-del" type="button">Delete</button>'+
+        '</div></div>';
+    }).join('');
+  }
+
+  function loadReportIntoPlanner(r){
+    planEmp.value  = r.employee || '';
+    planMonth.value = r.month; applyMonth();
+    planRate.value = (r.rate!=null) ? r.rate : '';
+    planBody.querySelectorAll('input').forEach(function(i){ i.value=''; });
+    planBody.querySelectorAll('select').forEach(function(s){ s.value=''; });
+    while(planBody.querySelectorAll('tr').length < r.rows.length){ addRows(5); }
+    renumber();
+    const trs = planBody.querySelectorAll('tr');
+    r.rows.forEach(function(row,i){
+      const tr = trs[i]; if(!tr) return;
+      tr.querySelector('.pl-date').value = row.date || '';
+      tr.querySelector('.pl-from').value = row.from;
+      tr.querySelector('.pl-to').value   = row.to;
+      tr.querySelector('.pl-notes').value= row.notes || '';
+    });
+    recalcPlan();
+    document.getElementById('plan-card').scrollIntoView({behavior:'smooth', block:'start'});
+    saveStatus.classList.remove('warn');
+    saveStatus.textContent = 'Opened "'+(r.employee||'Unnamed')+' · '+r.monthLabel+'". Edit and Save again to store it as a new report.';
+  }
+
+  function printReport(r){
+    const rowsHtml = r.rows.map(function(row,i){
+      const mi = (row.miles===null || row.miles===undefined) ? 'N/A' : fmtMiles(row.miles);
+      return '<tr><td class="num">'+(i+1)+'</td><td>'+escapeHtml(row.date||'')+'</td><td>'+
+        escapeHtml(row.fromLabel)+'</td><td>'+escapeHtml(row.toLabel)+'</td><td class="num">'+mi+
+        '</td><td>'+escapeHtml(row.notes||'')+'</td></tr>';
+    }).join('');
+    const est = (r.est!=null) ? ('$'+r.est.toFixed(2)) : '—';
+    const rateTxt = (r.rate!=null) ? ('$'+r.rate.toFixed(2)+' / mi') : 'not set';
+    document.getElementById('print-area').innerHTML =
+      '<div class="pr-band">DEMO FLEET CO &nbsp;·&nbsp; MONTHLY TRAVEL PLAN</div>'+
+      '<h1 class="pr-title">Monthly Travel Plan</h1>'+
+      '<div class="pr-meta"><div><b>Employee:</b> '+escapeHtml(r.employee||'Unnamed')+'</div>'+
+        '<div><b>Month:</b> '+r.monthLabel+'</div>'+
+        '<div><b>Rate:</b> '+rateTxt+'</div>'+
+        '<div><b>Printed:</b> '+fmtStamp(new Date().toISOString())+'</div></div>'+
+      '<table class="pr-table"><thead><tr><th>#</th><th>Date</th><th>From</th><th>To</th>'+
+        '<th style="text-align:right">Miles</th><th>Notes</th></tr></thead><tbody>'+rowsHtml+'</tbody></table>'+
+      '<div class="pr-tot"><div><div class="lbl">Total Plan Miles</div><div class="val">'+fmtMiles(r.total)+'</div></div>'+
+        '<div><div class="lbl">Estimated Reimbursement</div><div class="val">'+est+'</div></div></div>'+
+      '<div class="pr-foot">Distances are road-mileage estimates from the Fleet Matrix; home↔site legs are OSRM estimates and are directional (A→B may differ slightly from B→A). '+
+        (r.gaps ? (r.gaps+' leg(s) had no matrix distance and are excluded from the total. ') : '')+
+        'Source of truth = Fleet Distance Dashboard workbook.</div>';
+    window.print();
+  }
+
+  reportsList.addEventListener('click', function(e){
+    const card = e.target.closest('.report-card'); if(!card) return;
+    const id = card.getAttribute('data-id');
+    const reports = loadReports();
+    const r = reports.find(function(x){ return x.id===id; });
+    if(!r) return;
+    if(e.target.classList.contains('rc-print'))      printReport(r);
+    else if(e.target.classList.contains('rc-load'))  loadReportIntoPlanner(r);
+    else if(e.target.classList.contains('rc-del')){
+      if(confirm('Delete this saved plan? This cannot be undone.')){
+        storeReports(reports.filter(function(x){ return x.id!==id; }));
+        renderReports();
+      }
+    }
+  });
+  if(saveBtn) saveBtn.addEventListener('click', saveReport);
+  renderReports();
+
+  // keep the "N locations" labels in sync with the actual data
+  document.querySelectorAll('.site-count').forEach(function(el){ el.textContent = orderedCodes.length; });
+
+  // ---------- DISTANCE MATRIX CHART ----------
+  function renderMatrix(){
+    const shell = document.getElementById('matrix-shell');
+    let maxDist = 0;
+    orderedCodes.forEach(r=>orderedCodes.forEach(c=>{ if(r!==c){ const d=getDistance(r,c); if(d!==null && d>maxDist) maxDist=d; } }));
+    let html = `<table class="matrix-table"><thead><tr><th class="corner">Site \\ Site</th>`;
+    orderedCodes.forEach(c=>{
+      const isOffice = c===officeCode;
+      html += `<th data-col="${c}" class="${isOffice?'office-head-col':''}"><span class="rot">${c}${isOffice?' (HQ)':''}</span></th>`;
+    });
+    html += `</tr></thead><tbody>`;
+    orderedCodes.forEach(r=>{
+      const isOfficeRow = r===officeCode;
+      html += `<tr class="${isOfficeRow?'office-row':''}" data-row="${r}"><th class="${isOfficeRow?'office-head-row':''}">${sites[r].name} <span style="color:var(--ink-faint)">(${r})</span></th>`;
+      orderedCodes.forEach(c=>{
+        const isOfficeCol = c===officeCode;
+        if(r===c){
+          html += `<td class="diag${isOfficeRow?' office-corner-cell':''}">—</td>`;
+          return;
+        }
+        const d = getDistance(r,c);
+        let cls = [];
+        if(isOfficeCol) cls.push('office-col');
+        if(isOfficeRow) cls.push('office-row-cell');
+        let styleAttr = '';
+        if(!isOfficeCol && !isOfficeRow && d!==null && maxDist>0){
+          const alpha = (0.06 + (d/maxDist)*0.34).toFixed(2);
+          styleAttr = ` style="background-color:rgba(58,110,148,${alpha})"`;
+        }
+        html += `<td class="${cls.join(' ')}" data-col="${c}"${styleAttr}>${d===null?'—':fmtMiles(d)}</td>`;
+      });
+      html += `</tr>`;
+    });
+    html += `</tbody></table>`;
+    shell.innerHTML = html;
+
+    // column highlight on hover
+    shell.querySelectorAll('td[data-col], th[data-col]').forEach(cell=>{
+      cell.addEventListener('mouseenter', ()=>{
+        const col = cell.dataset.col;
+        shell.querySelectorAll(`[data-col="${col}"]`).forEach(el=>el.classList.add('col-hi'));
+      });
+      cell.addEventListener('mouseleave', ()=>{
+        const col = cell.dataset.col;
+        shell.querySelectorAll(`[data-col="${col}"]`).forEach(el=>el.classList.remove('col-hi'));
+      });
+    });
+
+    freezeOfficeRowCol(shell);
+  }
+
+  // Freeze the Head Office row + column so they stay visible while scrolling the chart
+  function freezeOfficeRowCol(shell){
+    const table = shell.querySelector('.matrix-table');
+    if(!table) return;
+    const sampleLabelTh = table.querySelector('tbody th');
+    const sampleHeaderTh = table.querySelector('thead th:not(.corner)');
+    if(!sampleLabelTh || !sampleHeaderTh) return;
+    const labelColWidth = Math.ceil(sampleLabelTh.getBoundingClientRect().width);
+    const headerHeight = Math.ceil(sampleHeaderTh.getBoundingClientRect().height);
+
+    table.querySelectorAll('.office-head-col').forEach(el=>{
+      el.style.position='sticky'; el.style.left = labelColWidth+'px'; el.style.zIndex=8;
+    });
+    table.querySelectorAll('.office-row-cell').forEach(el=>{
+      el.style.position='sticky'; el.style.top = headerHeight+'px'; el.style.zIndex=6;
+    });
+    table.querySelectorAll('.office-head-row').forEach(el=>{
+      el.style.position='sticky'; el.style.top = headerHeight+'px'; el.style.zIndex=9;
+    });
+    table.querySelectorAll('td.office-col').forEach(el=>{
+      el.style.position='sticky'; el.style.left = labelColWidth+'px'; el.style.zIndex=6;
+    });
+    table.querySelectorAll('.office-corner-cell').forEach(el=>{
+      el.style.position='sticky'; el.style.top = headerHeight+'px'; el.style.left = labelColWidth+'px'; el.style.zIndex=10;
+    });
+  }
+  window.addEventListener('resize', ()=>freezeOfficeRowCol(document.getElementById('matrix-shell')));
+  renderMatrix();
+
+  // ---------- DIRECTORY TABLE ----------
+  let sortKey = 'office_miles', sortDir = 1, typeFilter = 'All', searchQ = '';
+
+  function rowsData(){
+    return orderedCodes.map(c=>({
+      code:c, name:sites[c].name, address:sites[c].address,
+      type: typeLabel(c), office_miles: sites[c].office_miles, isOffice: c===officeCode
+    }));
+  }
+
+  function renderTable(){
+    let rows = rowsData();
+    if(typeFilter!=='All') rows = rows.filter(r=> r.isOffice ? true : r.type===typeFilter);
+    if(searchQ){
+      const q = searchQ.toLowerCase();
+      rows = rows.filter(r=> r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q) || r.address.toLowerCase().includes(q));
+    }
+    rows.sort((a,b)=>{
+      let av=a[sortKey], bv=b[sortKey];
+      if(typeof av==='string'){ av=av.toLowerCase(); bv=bv.toLowerCase(); }
+      if(av<bv) return -1*sortDir;
+      if(av>bv) return 1*sortDir;
+      return 0;
+    });
+    const body = document.getElementById('dir-body');
+    if(rows.length===0){
+      body.innerHTML = `<tr class="empty-row"><td colspan="6">No sites found — try changing your search or filter.</td></tr>`;
+      return;
+    }
+    body.innerHTML = rows.map(r=>{
+      const pillClass = r.isOffice ? 'office' : (r.type==="Employee Home" ? 'home' : (r.type==="Depot" ? 'depot':'cstore'));
+      return `<tr>
+        <td><span class="code-pill">${r.code}</span></td>
+        <td class="row-name">${r.name}</td>
+        <td class="row-addr">${r.address}</td>
+        <td><span class="type-pill ${pillClass}">${r.type}</span></td>
+        <td class="miles-cell">${r.isOffice ? '—' : fmtMiles(r.office_miles)}</td>
+        <td style="display:flex; gap:6px;">
+          <button class="use-btn" data-code="${r.code}">Use in calculator</button>
+          <button class="use-btn route-add-btn" data-code="${r.code}">+ Add to route</button>
+        </td>
+      </tr>`;
+    }).join('');
+    body.querySelectorAll('.use-btn:not(.route-add-btn)').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const code = btn.dataset.code;
+        if(!fromCombo.getCode()) fromCombo.pick(officeCode);
+        toCombo.pick(code);
+        computeResult();
+        document.querySelector('.calc').scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+    body.querySelectorAll('.route-add-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        addStop(btn.dataset.code);
+        document.getElementById('route-card').scrollIntoView({behavior:'smooth', block:'center'});
+      });
+    });
+  }
+
+  document.querySelectorAll('thead th[data-key]').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const key = th.dataset.key;
+      if(sortKey===key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+      document.querySelectorAll('thead th .arrow').forEach(a=>a.textContent='');
+      th.querySelector('.arrow').textContent = sortDir===1 ? ' ▲' : ' ▼';
+      renderTable();
+    });
+  });
+  document.getElementById('dir-search').addEventListener('input', (e)=>{
+    searchQ = e.target.value; renderTable();
+  });
+  document.querySelectorAll('.chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      typeFilter = chip.dataset.filter;
+      renderTable();
+    });
+  });
+
+  renderTable();
+
+  // default: preselect office as "From" for convenience
+  fromCombo.pick(officeCode);
+  computeResult();
+})();
+
+</script>
+
+<!-- Printable one-plan sheet (populated by "Print" on a saved report; only this prints) -->
+<div id="print-area"></div>
+</body>
+</html>
